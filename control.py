@@ -130,22 +130,6 @@ class forward_kinematics:
         except CvBridgeError as e:
             print(e)
 
-    # def callback(self,data1,data2,data3):
-    #
-    #     self.joint1 = float(data1)
-    #     self.joint3 = float(data2)
-    #     self.joint4 = float(data3)
-    #
-    #     self.coordinates = Float64MultiArray()
-    #     self.coordinates.data = self.calculate_final_matrix(self.joint1,self.joint3,self.joint4)
-    #
-    #     try:
-    #         print(self.coordinates)
-    #         self.coordinates_pub.publish(self.coordinates)
-    #     except CvBridgeError as e:
-    #         print(e)
-
-
 # call the class
 def main(args):
   fk = forward_kinematics()
