@@ -21,9 +21,9 @@ class image_converter:
         # initialize the node named image_processing
         rospy.init_node('image_processing2', anonymous=True)
         # initialize a subscriber to recieve messages rom a topic named /robot/camera1/image_raw and use callback function to recieve data
-        self.image_sub1 = message_filters.Subscriber("/image_topic1", Image)
+        self.image_sub1 = message_filters.Subscriber("/camera1/robot/image_raw", Image)
         # initialize a subscriber to recieve messages rom a topic named /robot/camera2/image_raw and use callback function to recieve data
-        self.image_sub2 = message_filters.Subscriber("/image_topic2", Image)
+        self.image_sub2 = message_filters.Subscriber("/camera2/robot/image_raw", Image)
         # initialize the bridge between openCV and ROS
         self.bridge = CvBridge()
         timesync = message_filters.TimeSynchronizer([self.image_sub1, self.image_sub2], 15)
@@ -33,9 +33,9 @@ class image_converter:
         self.joint3_pub = rospy.Publisher("/robot/joint3_position_controller/command", Float64, queue_size=10)
         self.joint4_pub = rospy.Publisher("/robot/joint4_position_controller/command", Float64, queue_size=10)
 
-        self.joint1_pos = rospy.Publisher("/joint1_vision2_pos", Float64, queue_size=10)
-        self.joint3_pos = rospy.Publisher("/joint3_vision2_pos", Float64, queue_size=10)
-        self.joint4_pos = rospy.Publisher("/joint4_vision2_pos", Float64, queue_size=10)
+        self.joint1_pos = rospy.Publisher("/joint_angle_1", Float64, queue_size=10)
+        self.joint3_pos = rospy.Publisher("/joint_angle_3", Float64, queue_size=10)
+        self.joint4_pos = rospy.Publisher("/joint_angle_4", Float64, queue_size=10)
 
         self.time_initial = rospy.get_time()
 
@@ -251,6 +251,9 @@ class image_converter:
         self.joint4.data = self.detect_joint4_angle()
             # Publish the results
         try:
+            self.joint1_pub.publish(joint1_val)
+            self.joint3_pub.publish(joint3_val)
+            self.joint4_pub.publish(joint4_val)
             print(self.joint1)
             print(self.joint3)
             print(self.joint4)

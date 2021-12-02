@@ -18,9 +18,14 @@ class forward_kinematics:
         # initialize the node named image_processing
         rospy.init_node('control_processing1', anonymous=True)
 
-        self.joint1_sub = rospy.Subscriber("/joint1_vision2_pos", Float64,self.callback1)
-        self.joint3_sub = rospy.Subscriber("/joint3_vision2_pos", Float64,self.callback2)
-        self.joint4_sub = rospy.Subscriber("/joint4_vision2_pos", Float64,self.callback3)
+        self.joint1_sub = rospy.Subscriber("/joint_angle_1", Float64,self.callback1)
+        self.joint3_sub = rospy.Subscriber("/joint_angle_3", Float64,self.callback2)
+        self.joint4_sub = rospy.Subscriber("/joint_angle_4", Float64,self.callback3)
+
+        # self.joint1_pub = rospy.Publisher("/robot/joint1_position_controller/command", Float64, queue_size=10)
+        # self.joint3_pub = rospy.Publisher("/robot/joint3_position_controller/command", Float64, queue_size=10)
+        # self.joint4_pub = rospy.Publisher("/robot/joint4_position_controller/command", Float64, queue_size=10)
+
         # initialize the bridge between openCV and ROS
         self.bridge = CvBridge()
 
@@ -34,6 +39,9 @@ class forward_kinematics:
         self.green2 = np.array([402,543])
         self.yellow1 = np.array([400,440])
         self.yellow2 = np.array([400,440])
+        self.joint3 = Float64()
+        self.joint1 = Float64()
+        self.joint4 = Float64()
 
     def calculate_final_matrix(self):
         # o0 to o1 frame
@@ -112,13 +120,10 @@ class forward_kinematics:
         return jacobian
 
     def callback1(self,data):
-        self.joint1 = Float64()
         self.joint1 = float(data.data)
     def callback2(self,data):
-        self.joint3 = Float64()
         self.joint3 = float(data.data)
     def callback3(self,data):
-        self.joint4 = Float64()
         self.joint4 = float(data.data)
 
         self.coordinates = Float64MultiArray()

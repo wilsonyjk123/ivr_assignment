@@ -21,9 +21,9 @@ class image_converter:
         # initialize the node named image_processing
         rospy.init_node('image_processing1', anonymous=True)
         # initialize a subscriber to recieve messages rom a topic named /robot/camera1/image_raw and use callback function to recieve data
-        self.image_sub1 = message_filters.Subscriber("/image_topic1", Image)
+        self.image_sub1 = message_filters.Subscriber("/camera1/robot/image_raw", Image)
         # initialize a subscriber to recieve messages rom a topic named /robot/camera2/image_raw and use callback function to recieve data
-        self.image_sub2 = message_filters.Subscriber("/image_topic2", Image)
+        self.image_sub2 = message_filters.Subscriber("/camera2/robot/image_raw", Image)
         # initialize the bridge between openCV and ROS
         self.bridge = CvBridge()
 
@@ -35,9 +35,9 @@ class image_converter:
         self.joint3_pub = rospy.Publisher("/robot/joint3_position_controller/command", Float64, queue_size=10)
         self.joint4_pub = rospy.Publisher("/robot/joint4_position_controller/command", Float64, queue_size=10)
 
-        self.joint2_pos = rospy.Publisher("/joint2_vision1_pos", Float64, queue_size=10)
-        self.joint3_pos = rospy.Publisher("/joint3_vision1_pos", Float64, queue_size=10)
-        self.joint4_pos = rospy.Publisher("/joint4_vision1_pos", Float64, queue_size=10)
+        self.joint2_pos = rospy.Publisher("/joint_angle_2", Float64, queue_size=10)
+        self.joint3_pos = rospy.Publisher("/joint_angle_3", Float64, queue_size=10)
+        self.joint4_pos = rospy.Publisher("/joint_angle_4", Float64, queue_size=10)
 
         self.time_initial = rospy.get_time()
 
