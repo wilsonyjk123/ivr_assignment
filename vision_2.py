@@ -139,22 +139,10 @@ class image_converter:
         yellow2 = self.yellow2
         blue1 = self.detect_blue(self.cv_image1)
         blue2 = self.detect_blue(self.cv_image2)
-
         projection = np.array([blue2[0]-yellow2[0],yellow1[0]-blue1[0]])
         y_axis = [0,1]
-
         link2 = np.array([blue2[0] - yellow2[0], yellow1[0] - blue1[0], yellow1[1] - blue1[1]])
         z_axis = [0, 0, 1]
-
-        # ja3 = np.arccos(
-        #     np.dot(link2, z_axis)
-        #     /
-        #     (
-        #             np.sqrt(link2[0] ** 2 + link2[1] ** 2 + link2[2] ** 2) * np.sqrt(
-        #         z_axis[0] ** 2 + z_axis[1] ** 2 + z_axis[2] ** 2)
-        #     )
-        # )
-
         ja1 = np.arccos(
             np.dot(projection, y_axis)
             /
@@ -163,17 +151,12 @@ class image_converter:
                 y_axis[0] ** 2 + y_axis[1] ** 2 )
             )
         )
-
         if(blue2[0]>yellow2[0]):
             ja1 = ja1
             return ja1
         else:
             ja1 = -ja1
             return ja1
-
-
-
-
 
     def detect_joint3_angle(self):
         a = self.pixel2meter(self.cv_image1)
@@ -206,16 +189,6 @@ class image_converter:
                 y_axis[0] ** 2 + y_axis[1] ** 2 )
             )
         )
-        # if(ja1<np.pi/2 or ja1 > -np.pi/2):
-        #     if(yellow1[0]>blue1[0]):
-        #         ja3 = ja3
-        #     else:
-        #         ja3 = -ja3
-        # if(ja1>np.pi/2 or ja1 < -np.pi/2):
-        #     if (yellow1[0] > blue1[0]):
-        #         ja3 = -ja3
-        #     else:
-        #         ja3 = ja3
         if(blue1[0]<yellow1[0]):
             ja3 = ja3
         else:
@@ -249,16 +222,6 @@ class image_converter:
                 link3[0] ** 2 + link3[1] ** 2 + link3[2] ** 2)
             )
         )
-
-        # if(red2[0]-blue2[0]>0 and blue1[0]-yellow2[0]>0):
-        #     return ja4
-        # elif(red2[0]-blue2[0]>0 and blue1[0]-yellow2[0]<0):
-        #     return -ja4
-        # elif(red2[0]-blue2[0] <0 and blue1[0] - yellow2[0]>0):
-        #     return -ja4
-        # elif (red2[0] - blue2[0] < 0 and blue1[0] - yellow2[0] < 0):
-        #     return ja4
-
         if(np.dot(link3,vector_x1)>0):
             return ja4
         else:
@@ -288,19 +251,12 @@ class image_converter:
         self.joint4.data = self.detect_joint4_angle()
             # Publish the results
         try:
-            # self.joint1_pub.publish(joint1_val)
-            # self.joint3_pub.publish(joint3_val)
-            # self.joint4_pub.publish(joint4_val)
             print(self.joint1)
             print(self.joint3)
             print(self.joint4)
             self.joint1_pos.publish(self.joint1)
             self.joint3_pos.publish(self.joint3)
             self.joint4_pos.publish(self.joint4)
-            # self.vector_z_pos.publish(self.vector_z)
-            # self.joint3_pos.publish(self.joint3)
-            # self.joint4_pos.publish(self.joint4)
-            # self.joints_pos.publish(self.joints)
         except CvBridgeError as e:
             print(e)
 

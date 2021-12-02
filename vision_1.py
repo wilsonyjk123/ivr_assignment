@@ -163,12 +163,6 @@ class image_converter:
             )
         )
 
-        # if (ja2 > np.pi / 2):
-        #     ja2 = np.pi - ja2
-        #
-        # if (ja2 < -np.pi / 2):
-        #     ja2 = -np.pi - ja2
-
         if (blue2[0] >= yellow2[0]):
             print(ja2)
             return ja2
@@ -255,11 +249,6 @@ class image_converter:
 
         self.joint4 = Float64()
         self.joint4.data = self.detect_joint4_angle()
-
-        # self.joints = Float64MultiArray()
-        # self.joints.data = self.detect_joints_angle()
-        # Recieve the image
-
 
         # Publish the results
         try:
