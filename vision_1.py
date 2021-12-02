@@ -26,8 +26,10 @@ class image_converter:
         self.image_sub2 = message_filters.Subscriber("/image_topic2", Image)
         # initialize the bridge between openCV and ROS
         self.bridge = CvBridge()
+
         timesync = message_filters.TimeSynchronizer([self.image_sub1, self.image_sub2], 15)
         timesync.registerCallback(self.callback1)
+
         # initialize a publisher to send joints' angular position to the robot
         self.joint2_pub = rospy.Publisher("/robot/joint2_position_controller/command", Float64, queue_size=10)
         self.joint3_pub = rospy.Publisher("/robot/joint3_position_controller/command", Float64, queue_size=10)
@@ -36,25 +38,14 @@ class image_converter:
         self.joint2_pos = rospy.Publisher("/joint2_vision1_pos", Float64, queue_size=10)
         self.joint3_pos = rospy.Publisher("/joint3_vision1_pos", Float64, queue_size=10)
         self.joint4_pos = rospy.Publisher("/joint4_vision1_pos", Float64, queue_size=10)
-        self.joints_pos = rospy.Publisher("/joints_vision1_pos", Float64MultiArray, queue_size=10)
-
-        self.green = rospy.Publisher("/green", Float64MultiArray, queue_size=10)
-        self.yellow = rospy.Publisher("/yellow", Float64MultiArray, queue_size=10)
-
-        self.vector_z_pos = rospy.Publisher("/detect_z_pos",Float64MultiArray,queue_size=10)
 
         self.time_initial = rospy.get_time()
-        # initialize errors
-        self.time_previous_step = np.array([rospy.get_time()], dtype='float64')
-        self.time_previous_step2 = np.array([rospy.get_time()], dtype='float64')
-        # initialize error and derivative of error for trajectory tracking
-        self.error = np.array([0.0, 0.0, 0.0], dtype='float64')
-        self.error_d = np.array([0.0, 0.0, 0.0], dtype='float64')
 
-        self.green1 = np.array([402,545])
-        self.green2 = np.array([402,545])
-        self.yellow1 = np.array([399,430])
-        self.yellow2 = np.array([399, 430])
+        # hardcode the position of yellow sphere and green sphere
+        self.green1 = np.array([402,543])
+        self.green2 = np.array([402,543])
+        self.yellow1 = np.array([400,440])
+        self.yellow2 = np.array([400,440])
 
 
         self.last_red_image1 = [0, 0]
@@ -62,6 +53,8 @@ class image_converter:
         self.last_blue_image1 = [0, 0]
         self.last_blue_image2 = [0, 0]
 
+
+    # Detecting the centre of the red circle
     def detect_red(self, image):
         # Isolate the blue colour in the image as a binary image
         mask = cv2.inRange(image, (0, 0, 100), (0, 0, 255))
@@ -70,41 +63,24 @@ class image_converter:
         mask = cv2.dilate(mask, kernel, iterations=3)
         # Obtain the moments of the binary image
         M = cv2.moments(mask)
-        if (M['m00'] == 0):
-            return self.detect_blue(image)
-        else:
+        # Calculate pixel coordinates for the centre of the blob
+        if M['m00'] != 0:
             cx = int(M['m10'] / M['m00'])
             cy = int(M['m01'] / M['m00'])
-            return np.array([cx, cy])
-
-        # Detecting the centre of the green circle
-    # def detect_red(self, image):
-    #     # Isolate the blue colour in the image as a binary image
-    #     mask = cv2.inRange(image, (0, 0, 100), (0, 0, 255))
-    #     # This applies a dilate that makes the binary region larger (the more iterations the larger it becomes)
-    #     kernel = np.ones((5, 5), np.uint8)
-    #     mask = cv2.dilate(mask, kernel, iterations=3)
-    #     # Obtain the moments of the binary image
-    #     M = cv2.moments(mask)
-    #     # Calculate pixel coordinates for the centre of the blob
-    #     if M['m00'] != 0:
-    #         cx = int(M['m10'] / M['m00'])
-    #         cy = int(M['m01'] / M['m00'])
-    #         if image is self.cv_image1:
-    #             self.last_red_image1[0] = cx
-    #             self.last_red_image1[1] = cy
-    #             return np.array([cx, cy])
-    #         else:
-    #             self.last_red_image2[0] = cx
-    #             self.last_red_image2[1] = cy
-    #             return np.array([cx, cy])
-    #     # this is in case red is blocked by green
-    #     else:
-    #         if image is self.cv_image1:
-    #             return np.array(self.last_red_image1)
-    #         else:
-    #             return np.array(self.last_red_image2)
-
+            if image is self.cv_image1:
+                self.last_red_image1[0] = cx
+                self.last_red_image1[1] = cy
+                return np.array([cx, cy])
+            else:
+                self.last_red_image2[0] = cx
+                self.last_red_image2[1] = cy
+                return np.array([cx, cy])
+        # when red is blocked
+        else:
+            if image is self.cv_image1:
+                return np.array(self.last_red_image1)
+            else:
+                return np.array(self.last_red_image2)
 
     # Detecting the centre of the green circle
     def detect_green(self, image):
@@ -116,41 +92,28 @@ class image_converter:
         cy = int(M['m01'] / M['m00'])
         return np.array([cx, cy])
 
-
     # Detecting the centre of the blue circle
-    # def detect_blue(self, image):
-    #     mask = cv2.inRange(image, (100, 0, 0), (255, 0, 0))
-    #     kernel = np.ones((5, 5), np.uint8)
-    #     mask = cv2.dilate(mask, kernel, iterations=3)
-    #     M = cv2.moments(mask)
-    #     # Calculate pixel coordinates for the centre of the blob
-    #     if M['m00'] != 0:
-    #         cx = int(M['m10'] / M['m00'])
-    #         cy = int(M['m01'] / M['m00'])
-    #         if self.cv_image1 is image:
-    #             self.last_blue_image1 = np.array([cx, cy])
-    #             return np.array([cx, cy])
-    #         else:
-    #             self.last_blue_image2 = np.array([cx, cy])
-    #             return np.array([cx, cy])
-    #     # this is in case red is blocked by green
-    #     else:
-    #         if self.cv_image1 is image:
-    #             return self.last_blue_image1
-    #         else:
-    #             return self.last_blue_image2
-
     def detect_blue(self, image):
         mask = cv2.inRange(image, (100, 0, 0), (255, 0, 0))
         kernel = np.ones((5, 5), np.uint8)
         mask = cv2.dilate(mask, kernel, iterations=3)
         M = cv2.moments(mask)
-        if (M['m00'] == 0):
-            return self.detect_yellow(image)
-        else:
+        # Calculate pixel coordinates for the centre of the blob
+        if M['m00'] != 0:
             cx = int(M['m10'] / M['m00'])
             cy = int(M['m01'] / M['m00'])
-            return np.array([cx, cy])
+            if self.cv_image1 is image:
+                self.last_blue_image1 = np.array([cx, cy])
+                return np.array([cx, cy])
+            else:
+                self.last_blue_image2 = np.array([cx, cy])
+                return np.array([cx, cy])
+        # this is in case blue is blocked by yellow
+        else:
+            if self.cv_image1 is image:
+                return self.last_blue_image1
+            else:
+                return self.last_blue_image2
 
     # Detecting the centre of the yellow circle
     def detect_yellow(self, image):
@@ -165,7 +128,7 @@ class image_converter:
     # Calculate the conversion from pixel to meter
     def pixel2meter(self, image):
         # Obtain the centre of each coloured blob
-        circle1Pos = self.detect_blue(image)
+        circle1Pos = self.detect_yellow(image)
         circle2Pos = self.detect_green(image)
         # find the distance between two circles
         dist = np.sum((circle1Pos - circle2Pos) ** 2)
@@ -174,16 +137,23 @@ class image_converter:
     def detect_joint2_angle(self):
         a = self.pixel2meter(self.cv_image1)
         b = self.pixel2meter(self.cv_image2)
-        yellow1 = self.yellow1
-        yellow2 = self.yellow2
-        blue1 = self.detect_blue(self.cv_image1)
-        blue2 = self.detect_blue(self.cv_image2)
 
-        vector_z = np.array([0, 0, 3.2])
-        vector_x = np.array([3.2, 0, 0])
-        vector_y = np.array([0, 3.2, 0])
-        vector_z1 = np.array([blue2[0] - yellow2[0], blue1[0]-yellow1[0], yellow1[1] - blue1[1]])
+        yellow1 = a * self.yellow1
+        yellow2 = b * self.yellow2
+        blue1 = a * self.detect_blue(self.cv_image1)
+        blue2 = b * self.detect_blue(self.cv_image2)
+
+        # The unit vector on x-axis and y-axis
+        vector_x = np.array([1, 0, 0])
+        vector_y = np.array([0, 1, 0])
+        # use the camera to get the vector of link2
+        vector_z1 = np.array(
+            [blue2[0] - yellow2[0], yellow1[0] - blue1[0], ((yellow1[1] - blue1[1]) + (yellow2[1] - blue2[1])) / 2])
+        print('link2 is', vector_z1)
+        # get the new x-axis after the rotation around the y axis.
         vector_x1 = np.cross(vector_y, vector_z1)
+        print('new x is', vector_x1)
+        # get the angle between the new x_axis and the original x_axis
         ja2 = np.arccos(
             np.dot(vector_x, vector_x1)
             /
@@ -193,25 +163,32 @@ class image_converter:
             )
         )
 
+        # if (ja2 > np.pi / 2):
+        #     ja2 = np.pi - ja2
+        #
+        # if (ja2 < -np.pi / 2):
+        #     ja2 = -np.pi - ja2
+
         if (blue2[0] >= yellow2[0]):
+            print(ja2)
             return ja2
         else:
+            print(ja2)
             return -ja2
 
     def detect_joint3_angle(self):
-        a = self.pixel2meter(self.cv_image1)
-        b = self.pixel2meter(self.cv_image2)
+
         yellow1 = self.yellow1
         yellow2 = self.yellow2
         blue1 = self.detect_blue(self.cv_image1)
         blue2 = self.detect_blue(self.cv_image2)
 
-        vector_z = np.array([0, 0, 3.2])
-        vector_x = np.array([3.2, 0, 0])
-        vector_y = np.array([0, -3.2, 0])
-        vector_z1 = np.array([blue2[0] - yellow2[0], yellow1[0]-blue1[0], yellow1[1] - blue1[1]])
+        vector_y = np.array([0, 1, 0])
+        vector_z1 = np.array([blue2[0] - yellow2[0], yellow1[0] - blue1[0], yellow1[1] - blue1[1]])
         vector_x1 = np.cross(vector_y, vector_z1)
-        vector_y1 = np.cross(vector_x1, vector_z1)
+        print(vector_x1)
+        vector_y1 = np.cross(vector_z1, vector_x1)
+        print(vector_y1)
         ja3 = np.arccos(
             np.dot(vector_y, vector_y1)
             /
@@ -220,15 +197,15 @@ class image_converter:
                 vector_y1[0] ** 2 + vector_y1[1] ** 2 + vector_y1[2] ** 2)
             )
         )
-        if (blue1[0]<=yellow1[0]):
-            return -ja3+np.pi
+        print(ja3)
+        if (blue1[0] <= yellow1[0]):
+            return ja3
         else:
-            return ja3-np.pi
+            return -ja3
 
 
     def detect_joint4_angle(self):
-        a = self.pixel2meter(self.cv_image1)
-        b = self.pixel2meter(self.cv_image2)
+
         red1 = self.detect_red(self.cv_image1)
         red2 = self.detect_red(self.cv_image2)
         yellow1 = self.yellow1
@@ -238,7 +215,7 @@ class image_converter:
         link2 = np.array([blue2[0] - yellow2[0], yellow1[0] - blue1[0], yellow1[1] - blue1[1]])
         link3 = np.array([red2[0]-blue2[0],blue1[0]-red1[0],blue1[1]-red1[1]])
 
-        vector_y = np.array([0, 3.2, 0])
+        vector_y = np.array([0, 1, 0])
         vector_x1 = np.cross(vector_y, link2)
 
         ja4 = np.arccos(
@@ -256,32 +233,6 @@ class image_converter:
             return -ja4
 
 
-    def detect_z2(self):
-        a = self.pixel2meter(self.cv_image2)
-        b = self.pixel2meter(self.cv_image1)
-        yellow1 = a * self.detect_yellow(self.cv_image1)
-        yellow2 = b * self.detect_yellow(self.cv_image2)
-        blue1 = a * self.detect_blue(self.cv_image1)
-        blue2 = b * self.detect_blue(self.cv_image2)
-
-        vector_z = np.array([0, 0, 3.2])
-        vector_x = np.array([3.2, 0, 0])
-        vector_y = np.array([0, 3.2, 0])
-        vector_z2 = np.array([blue2[0] - yellow2[0], blue1[0] - yellow1[0], yellow1[1] - blue1[1]])
-        vector_x1 = np.cross(vector_y, vector_z2)
-        ja2 = np.arccos(
-            np.dot(vector_x, vector_x1)
-            /
-            (
-                    np.sqrt(vector_x[0] ** 2 + vector_x[1] ** 2 + vector_x[2] ** 2) * np.sqrt(
-                vector_x1[0] ** 2 + vector_x1[1] ** 2 + vector_x1[2] ** 2)
-            )
-        )
-
-        return vector_z2
-
-
-
     # Recieve data from camera 1, process it, and publish
     def callback1(self, data1, data2):
         joint2_val = Float64()
@@ -296,14 +247,8 @@ class image_converter:
         except CvBridgeError as e:
             print(e)
 
-        # self.joints = Float64MultiArray()
-        # self.joints.data = self.detect_joint_angles(self.cv_image1)
-
         self.joint2 = Float64()
         self.joint2.data = self.detect_joint2_angle()
-
-        self.vector_z = Float64MultiArray()
-        self.vector_z.data = self.detect_z2()
 
         self.joint3 = Float64()
         self.joint3.data = self.detect_joint3_angle()
@@ -311,11 +256,6 @@ class image_converter:
         self.joint4 = Float64()
         self.joint4.data = self.detect_joint4_angle()
 
-        self.green_pos = Float64MultiArray()
-        self.green_pos.data = self.detect_green(self.cv_image1)
-
-        self.yellow_pos = Float64MultiArray()
-        self.yellow_pos.data = self.detect_yellow(self.cv_image1)
         # self.joints = Float64MultiArray()
         # self.joints.data = self.detect_joints_angle()
         # Recieve the image
@@ -327,14 +267,8 @@ class image_converter:
             self.joint3_pub.publish(joint3_val)
             self.joint4_pub.publish(joint4_val)
             self.joint2_pos.publish(self.joint2)
-            self.vector_z_pos.publish(self.vector_z)
             self.joint3_pos.publish(self.joint3)
             self.joint4_pos.publish(self.joint4)
-
-            self.yellow.publish(self.yellow_pos)
-            self.green.publish(self.green_pos)
-            # self.joints_pos.publish(self.joints)
-
         except CvBridgeError as e:
             print(e)
 

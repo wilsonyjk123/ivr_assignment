@@ -24,17 +24,13 @@ class image_converter:
       self.image_sub1 = message_filters.Subscriber("/image_topic1", Image)
       # receive image from second camera
       self.image_sub2 = message_filters.Subscriber("/image_topic2", Image)
+
+      self.red_pub = rospy.Publisher("/red", Float64MultiArray, queue_size=10)
       # Synchronize subscriptions into one callback
       timesync = message_filters.TimeSynchronizer([self.image_sub1, self.image_sub2], 10)
       timesync.registerCallback(self.callback1)
       # initialize a publisher to send joints' angular position to a topic called joints_pos
-      self.joint2_pub = rospy.Publisher("/robot/joint2_position_controller/command", Float64, queue_size=10)
-      self.joint3_pub = rospy.Publisher("/robot/joint3_position_controller/command", Float64, queue_size=10)
-      self.joint4_pub = rospy.Publisher("/robot/joint4_position_controller/command", Float64, queue_size=10)
 
-      self.joint2_pos = rospy.Publisher("joint2_pos", Float64, queue_size=10)
-      self.joint3_pos = rospy.Publisher("joint3_pos", Float64, queue_size=10)
-      self.joint4_pos = rospy.Publisher("joint4_pos", Float64, queue_size=10)
       # initialize the bridge between openCV and ROS
       self.time_initial = rospy.get_time()
       # initialize errors
@@ -135,144 +131,44 @@ class image_converter:
       return 4 / np.sqrt(dist)
 
 
-  def detect_joint2_angle(self):
-      a = self.pixel2meter(self.cv_image1)
-      b = self.pixel2meter(self.cv_image2)
+  def detect_red_c(self):
 
-      yellow1 = a*self.yellow1
-      yellow2 = b*self.yellow2
-      blue1 = a*self.detect_blue(self.cv_image1)
-      blue2 = b*self.detect_blue(self.cv_image2)
-
-      vector_x = np.array([1,0,0])
-      vector_y = np.array([0,1,0])
-
-      vector_z1 = np.array([blue2[0]-yellow2[0],yellow1[0]-blue1[0],((yellow1[1] - blue1[1])+(yellow2[1]-blue2[1]))/2])
-      print('link2 is', vector_z1)
-      vector_x1 = np.cross(vector_y,vector_z1)
-      print('new x is',vector_x1)
-
-      ja2 = np.arccos(
-            np.dot(vector_x, vector_x1)
-            /
-            (
-                    np.sqrt(vector_x[0] ** 2 + vector_x[1] ** 2 + vector_x[2] ** 2) * np.sqrt(
-                vector_x1[0] ** 2 + vector_x1[1] ** 2 + vector_x1[2] ** 2)
-            )
-        )
-
-      if (ja2 > np.pi / 2):
-          ja2 = np.pi - ja2
-
-      if (ja2 < -np.pi / 2):
-          ja2 = -np.pi - ja2
-
-      if (blue2[0] >= yellow2[0]):
-          print(ja2)
-          return ja2
-      else:
-          print(ja2)
-          return -ja2
-
-  def detect_joint3_angle(self):
-
-      yellow1 = self.yellow1
-      yellow2 = self.yellow2
-      blue1 = self.detect_blue(self.cv_image1)
-      blue2 = self.detect_blue(self.cv_image2)
-
-      vector_z = np.array([0, 0, 1])
-      vector_x = np.array([1, 0, 0])
-      vector_y = np.array([0, 1, 0])
-      vector_z1 = np.array([blue2[0] - yellow2[0], yellow1[0] - blue1[0], yellow1[1] - blue1[1]])
-      vector_x1 = np.cross(vector_y, vector_z1)
-      print(vector_x1)
-      vector_y1 = np.cross(vector_z1, vector_x1)
-      print(vector_y1)
-      ja3 = np.arccos(
-          np.dot(vector_y, vector_y1)
-          /
-          (
-                  np.sqrt(vector_y[0] ** 2 + vector_y[1] ** 2 + vector_y[2] ** 2) * np.sqrt(
-              vector_y1[0] ** 2 + vector_y1[1] ** 2 + vector_y1[2] ** 2)
-          )
-      )
-      print(ja3)
-      if (blue1[0] <= yellow1[0]):
-          return ja3
-      else:
-          return -ja3
-
-
-
-  def detect_joint4_angle(self):
       a = self.pixel2meter(self.cv_image1)
       b = self.pixel2meter(self.cv_image2)
       red1 = a * self.detect_red(self.cv_image1)
       red2 = b * self.detect_red(self.cv_image2)
-      yellow1 = a * self.detect_yellow(self.cv_image1)
-      yellow2 = b * self.detect_yellow(self.cv_image2)
+
+      yellow1 = a * self.yellow1
+      yellow2 = b * self.yellow2
+
       blue1 = a * self.detect_blue(self.cv_image1)
       blue2 = b * self.detect_blue(self.cv_image2)
-      link2 = np.array([blue2[0] - yellow2[0], yellow1[0] - blue1[0], yellow1[1] - blue1[1]])
-      link3 = np.array([red2[0] - blue2[0], blue1[0] - red1[0], blue1[1] - red1[1]])
 
-      vector_y = np.array([0, 3.2, 0])
-      vector_x1 = np.cross(vector_y, link2)
+      green1 = a * self.green1
+      green2 = b * self.green2
 
-      ja4 = np.arccos(
-          np.dot(link2, link3)
-          /
-          (
-                  np.sqrt(link2[0] ** 2 + link2[1] ** 2 + link2[2] ** 2) * np.sqrt(
-              link3[0] ** 2 + link3[1] ** 2 + link3[2] ** 2)
-          )
-      )
-
-      if (np.dot(link3, vector_x1) > 0):
-          return ja4
-      else:
-          return -ja4
-
+      red_coordinates = np.array([red2[0]-green2[0],red1[0]-green1[0],green1[1]-red1[1]])
+      print(red_coordinates)
+      return red_coordinates
 
 
   # Recieve data, process it, and publish
   def callback1(self,data1,data2):
 
-      joint2_val = Float64()
-      joint2_val.data = (np.pi / 2) * np.sin((np.pi / 15) * (rospy.get_time() - self.time_initial))
-      joint3_val = Float64()
-      joint3_val.data = (np.pi / 2) * np.sin((np.pi / 20) * (rospy.get_time() - self.time_initial))
-
-      joint4_val = Float64()
-      joint4_val.data = (np.pi / 2) * np.sin((np.pi / 18) * (rospy.get_time() - self.time_initial))
     # Recieve the image
       try:
             self.cv_image1 = self.bridge.imgmsg_to_cv2(data1, "bgr8")
             self.cv_image2 = self.bridge.imgmsg_to_cv2(data2, "bgr8")
-            self.joint2_pub.publish(joint2_val)
-            self.joint3_pub.publish(joint3_val)
       except CvBridgeError as e:
             print(e)
 
-      # self.redco = Float64MultiArray()
-      # self.redco.data = self.detect_red_c()
-
-      self.joint2 = Float64()
-      self.joint2.data = self.detect_joint2_angle()
-
-      self.joint3 = Float64()
-      self.joint3.data = self.detect_joint3_angle()
-
-      self.joint4 = Float64()
-      self.joint4.data = self.detect_joint4_angle()
+      self.redco = Float64MultiArray()
+      self.redco.data = self.detect_red_c()
 
       # Publish the results
       try:
-        self.joint2_pos.publish(self.joint2)
-        self.joint3_pos.publish(self.joint3)
-        self.joint4_pos.publish(self.joint4)
-
+          print(self.redco)
+          self.red_pub.publish(self.redco)
       except CvBridgeError as e:
         print(e)
 
